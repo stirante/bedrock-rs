@@ -1,11 +1,13 @@
 pub mod biome;
 pub mod bits;
+pub mod block_entity;
 pub mod db;
 pub mod error;
 pub mod greedy;
 pub mod iter;
 pub mod key;
 pub mod lazy;
+pub mod nbt_list;
 pub mod player;
 pub mod settings;
 pub mod subchunk;
