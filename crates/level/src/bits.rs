@@ -148,8 +148,27 @@ impl BitArray {
     where
         Cursor<W>: Write,
     {
+        self.to_disk_with_flag(writer, palette_size, 0)
+    }
+
+    /// Serializes this array like [`to_disk`](Self::to_disk) with `flag` in the lowest bit of the
+    /// header. Block layers use 0 (the palette is NBT); biome storages use 1 (the palette is
+    /// biome ids), the way the game writes them.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if writing to `writer` fails.
+    pub fn to_disk_with_flag<W>(
+        &self,
+        writer: &mut Cursor<W>,
+        palette_size: usize,
+        flag: u8,
+    ) -> Result<()>
+    where
+        Cursor<W>: Write,
+    {
         let bits = Self::bits_for(palette_size);
-        writer.write_u8(bits << 1)?;
+        writer.write_u8(bits << 1 | flag & 1)?;
         if bits == 0 {
             return Ok(());
         }
