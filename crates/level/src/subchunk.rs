@@ -209,8 +209,12 @@ impl Layer {
     where
         Cursor<R>: Read,
     {
+        let mut array_is_empty = false;
         let array = match BitArray::from_disk::<M, _>(reader)? {
-            IndicesType::Empty => BitArray::zeroed::<M>(),
+            IndicesType::Empty => {
+                array_is_empty = true;
+                BitArray::zeroed::<M>()
+            }
             IndicesType::Inherit => {
                 return Err(Error::Invalid(
                     "chunks do not support inheriting bit arrays",
@@ -219,7 +223,7 @@ impl Layer {
             IndicesType::Data(array) => array,
         };
 
-        let len = reader.read_u32::<LittleEndian>()? as usize;
+        let len = Self::palette_len(reader, array_is_empty)?;
         let mut palette = Vec::with_capacity(len);
 
         for _ in 0..len {
@@ -244,6 +248,26 @@ impl Layer {
             palette,
             hashes,
         })
+    }
+
+    /// Reads the palette size. Old sub chunks (version 8 and earlier) store a layer without
+    /// indices with no size at all: the single palette entry follows the header directly, so
+    /// the next byte is the compound tag id instead of the low byte of the size.
+    fn palette_len<R>(reader: &mut Cursor<R>, array_is_empty: bool) -> Result<usize>
+    where
+        Cursor<R>: Read,
+    {
+        const COMPOUND_TAG: u8 = 10;
+
+        if array_is_empty {
+            let start = reader.position();
+            let next = reader.read_u8()?;
+            reader.set_position(start);
+            if next == COMPOUND_TAG {
+                return Ok(1);
+            }
+        }
+        Ok(reader.read_u32::<LittleEndian>()? as usize)
     }
 
     /// Serializes a single layer into the given buffer.
@@ -474,12 +498,15 @@ impl SubChunk {
         Cursor<W>: Write,
     {
         writer.write_u8(self.version as u8)?;
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "a sub chunk has at most a handful of layers, the format stores the count in one byte"
-        )]
-        let layer_count = self.layers.len() as u8;
-        writer.write_u8(layer_count)?;
+        // Legacy sub chunks have exactly one layer and no layer count.
+        if self.version != SubChunkVersion::Legacy {
+            #[expect(
+                clippy::cast_possible_truncation,
+                reason = "a sub chunk has at most a handful of layers, the format stores the count in one byte"
+            )]
+            let layer_count = self.layers.len() as u8;
+            writer.write_u8(layer_count)?;
+        }
 
         if self.version == SubChunkVersion::Limitless {
             writer.write_i8(self.index)?;
