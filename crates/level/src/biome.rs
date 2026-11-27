@@ -61,24 +61,27 @@ impl Biomes {
     where
         Cursor<W>: Write,
     {
-        const EMPTY_FLAG: u8 = 0x00;
-        const INHERIT_FLAG: u8 = 0x7f;
+        // The lowest header bit is set on every biome storage: its palette holds ids, not NBT.
+        const ID_PALETTE: u8 = 1;
+        const SINGLE: u8 = ID_PALETTE;
+        const INHERIT: u8 = 0x7f << 1 | ID_PALETTE;
 
         writer.write_all(bytemuck::cast_slice::<u16, u8>(self.heightmap.as_slice()))?;
 
         for fragment in &self.fragments {
             match fragment {
-                BiomeEncoding::Inherit => writer.write_u8(INHERIT_FLAG << 1)?,
+                BiomeEncoding::Inherit => writer.write_u8(INHERIT)?,
                 BiomeEncoding::Single(v) => {
-                    writer.write_u8(EMPTY_FLAG << 1)?;
+                    writer.write_u8(SINGLE)?;
                     writer.write_u32::<LittleEndian>(*v)?;
                 }
                 BiomeEncoding::Palette(v) if v.palette.len() <= 1 => {
-                    writer.write_u8(EMPTY_FLAG << 1)?;
+                    writer.write_u8(SINGLE)?;
                     writer.write_u32::<LittleEndian>(v.palette.first().copied().unwrap_or(0))?;
                 }
                 BiomeEncoding::Palette(v) => {
-                    v.array.to_disk(writer, v.palette.len())?;
+                    v.array
+                        .to_disk_with_flag(writer, v.palette.len(), ID_PALETTE)?;
                     #[expect(
                         clippy::cast_possible_truncation,
                         reason = "a biome palette holds at most 4096 entries"
