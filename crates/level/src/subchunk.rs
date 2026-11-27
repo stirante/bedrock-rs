@@ -55,10 +55,15 @@ pub struct BlockDef {
 }
 
 impl Hash for BlockDef {
-    /// Hashes this block.
+    /// Hashes this block. The states are hashed in key order: a `HashMap` iterates in a
+    /// different order in every instance, so two equal blocks would otherwise hash differently.
+    /// The version is hashed too, since layers find palette entries by hash alone.
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write(self.name.as_bytes());
-        for (k, v) in &self.states {
+        self.version.hash(state);
+        let mut states: Vec<_> = self.states.iter().collect();
+        states.sort_unstable_by(|a, b| a.0.cmp(b.0));
+        for (k, v) in states {
             state.write(k.as_bytes());
             v.hash(state);
         }
