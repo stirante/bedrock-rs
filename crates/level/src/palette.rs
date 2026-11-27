@@ -85,8 +85,9 @@ fn read_common<R: Read>(r: &mut R) -> Option<BlockDef> {
         if tag == TAG_END {
             break;
         }
-        let key = read_bytes(r)?;
-        match (tag, key.as_slice()) {
+        let mut key = [0; 8];
+        let key = read_field_name(r, &mut key)?;
+        match (tag, key) {
             (TAG_STRING, b"name") if name.is_none() => {
                 name = Some(String::from_utf8(read_bytes(r)?).ok()?);
             }
@@ -127,6 +128,15 @@ fn read_states<R: Read>(r: &mut R) -> Option<HashMap<String, Value>> {
             return None;
         }
     }
+}
+
+/// A field name of the root compound into `buf`, without allocating. A name longer than `buf`
+/// is none of the known fields.
+fn read_field_name<'b, R: Read>(r: &mut R, buf: &'b mut [u8; 8]) -> Option<&'b [u8]> {
+    let len = usize::from(r.read_u16::<LittleEndian>().ok()?);
+    let name = buf.get_mut(..len)?;
+    r.read_exact(name).ok()?;
+    Some(name)
 }
 
 /// A string payload: a little endian `u16` length and the bytes.
