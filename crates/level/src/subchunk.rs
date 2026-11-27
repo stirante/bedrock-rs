@@ -6,6 +6,7 @@ use std::ops::Index;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use facet::Facet;
+use indexmap::IndexMap;
 use nbtx::LittleEndian;
 use nohash_hasher::BuildNoHashHasher;
 use rustc_hash::FxHasher;
@@ -43,16 +44,20 @@ impl TryFrom<u8> for SubChunkVersion {
 }
 
 /// Definition of block in the sub chunk block palette.
+///
+/// Fields are declared in the order the game writes them (`name`, `states`, `version`), and the
+/// states keep their order, so an entry is written back byte for byte as it was read.
 #[derive(Facet, Debug, Clone, PartialEq)]
 pub struct BlockDef {
     /// Name of the block.
     pub name: String,
+    /// Block-specific properties, in the order they were read or inserted. Equality ignores the
+    /// order.
+    #[facet(default)]
+    pub states: IndexMap<String, nbtx::Value>,
     /// Version of the block state format, packed as `major << 24 | minor << 16 | patch << 8 | revision`.
     #[facet(default)]
     pub version: Option<i32>,
-    /// Block-specific properties.
-    #[facet(default)]
-    pub states: HashMap<String, nbtx::Value>,
 }
 
 impl Hash for BlockDef {

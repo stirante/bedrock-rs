@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::io::Cursor;
 
 use bedrock_level::subchunk::{BlockDef, SubChunk, SubChunkVersion};
@@ -8,7 +8,7 @@ fn stone() -> BlockDef {
     BlockDef {
         name: "minecraft:stone".to_owned(),
         version: Some(18_168_865),
-        states: HashMap::new(),
+        states: IndexMap::new(),
     }
 }
 

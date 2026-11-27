@@ -6,10 +6,10 @@
 //! here and anything else is handed to nbtx. The results are the same either way: an entry this
 //! module does not fully understand is read again by nbtx from its start.
 
-use std::collections::HashMap;
 use std::io::{Cursor, Read, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use indexmap::IndexMap;
 use nbtx::Value;
 
 use crate::error::Result;
@@ -58,15 +58,15 @@ where
 
     write_key(writer, TAG_STRING, b"name")?;
     write_str(writer, entry.name.as_bytes())?;
-    if let Some(version) = entry.version {
-        write_key(writer, TAG_INT, b"version")?;
-        writer.write_i32::<LittleEndian>(version)?;
-    }
     write_key(writer, TAG_COMPOUND, b"states")?;
     for (key, value) in &entry.states {
         write_scalar(writer, key.as_bytes(), value)?;
     }
     writer.write_u8(TAG_END)?;
+    if let Some(version) = entry.version {
+        write_key(writer, TAG_INT, b"version")?;
+        writer.write_i32::<LittleEndian>(version)?;
+    }
 
     writer.write_u8(TAG_END)?;
     Ok(())
@@ -106,8 +106,8 @@ fn read_common<R: Read>(r: &mut R) -> Option<BlockDef> {
     })
 }
 
-fn read_states<R: Read>(r: &mut R) -> Option<HashMap<String, Value>> {
-    let mut states = HashMap::new();
+fn read_states<R: Read>(r: &mut R) -> Option<IndexMap<String, Value>> {
+    let mut states = IndexMap::new();
     loop {
         let tag = r.read_u8().ok()?;
         if tag == TAG_END {
