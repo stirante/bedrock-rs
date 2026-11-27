@@ -12,6 +12,7 @@ use rustc_hash::FxHasher;
 
 use crate::bits::{BitArray, BitArrayIter, IndicesType};
 use crate::error::{Error, Result};
+use crate::palette;
 use crate::types::BlockPosition;
 use crate::{Greedy, Lazy, UnpackingMethod};
 
@@ -227,8 +228,7 @@ impl Layer {
         let mut palette = Vec::with_capacity(len);
 
         for _ in 0..len {
-            let entry = nbtx::from_le_bytes(reader)?;
-            palette.push(entry);
+            palette.push(palette::read_entry(reader)?);
         }
 
         let mut hashes =
@@ -286,7 +286,7 @@ impl Layer {
         let palette_len = plen as u32;
         writer.write_u32::<LittleEndian>(palette_len)?;
         for entry in &self.palette {
-            nbtx::to_le_bytes_in(writer, entry)?;
+            palette::write_entry(writer, entry)?;
         }
 
         Ok(())

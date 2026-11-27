@@ -6,6 +6,7 @@ pub mod greedy;
 pub mod iter;
 pub mod key;
 pub mod lazy;
+mod palette;
 pub mod player;
 pub mod settings;
 pub mod subchunk;
