@@ -8,6 +8,7 @@ use smallvec::SmallVec;
 
 use crate::UnpackingMethod;
 use crate::bits::{BitArray, IndicesType};
+use crate::error::Error;
 use crate::error::Result;
 use crate::greedy::GreedyArray;
 use crate::types::BlockPosition;
