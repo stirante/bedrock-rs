@@ -772,6 +772,14 @@ impl Layer {
     where
         Cursor<R>: Read,
     {
+        // The header's lowest bit marks a palette of runtime ids, which only the network
+        // format uses; on disk the palette is always NBT.
+        let start = reader.position();
+        if reader.read_u8()? & 1 != 0 {
+            return Err(Error::Invalid("subchunk layer with a runtime id palette"));
+        }
+        reader.set_position(start);
+
         let array = match BitArray::from_disk::<M, _>(reader)? {
             IndicesType::Empty => BitArray::Empty,
             IndicesType::Inherit => {
@@ -1384,6 +1392,24 @@ mod palette_tests {
             layer.palette().len(),
             2,
             "set added an entry already in the palette"
+        );
+    }
+
+    /// A layer header with its lowest bit set holds runtime ids instead of NBT, the form
+    /// the network protocol sends. It is rejected as such rather than its ids being read
+    /// as NBT.
+    #[test]
+    fn layer_with_a_runtime_id_palette_is_rejected() {
+        let mut bytes = vec![SubChunkVersion::Limitless.raw(), 1, 0];
+        bytes.push(1 << 1 | 1);
+        bytes.extend(std::iter::repeat_n(0u8, 128 * 4));
+        bytes.extend(1u32.to_le_bytes());
+        bytes.extend(11_833u32.to_le_bytes());
+
+        let result = SubChunk::from_disk::<Greedy, _>(&mut Cursor::new(bytes.as_slice()));
+        assert!(
+            matches!(result, Err(Error::Invalid(_))),
+            "read as {result:?}"
         );
     }
 }
